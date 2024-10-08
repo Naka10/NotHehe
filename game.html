@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Clicker Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-image: url('https://images.wallpaperscraft.ru/image/single/tropa_tuman_les_1286198_1280x720.jpg');
+            background-size: cover;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            color: #fff;
+        }
+        #score {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #f0e68c;
+        }
+        #click-button {
+            padding: 15px 30px;
+            font-size: 2em;
+            background-color: #ff6347;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        #click-button:hover {
+            background-color: #ff4500;
+        }
+        #click-button:active {
+            transform: scale(0.9);
+        }
+        #upgrades {
+            margin-top: 30px;
+        }
+        .upgrade-button {
+            padding: 15px;
+            margin: 10px;
+            font-size: 1.2em;
+            background-color: #32cd32;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .upgrade-button:hover {
+            background-color: #218838;
+        }
+        .disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #auto-click-level-display {
+            font-size: 1.2em;
+            margin-top: 10px;
+            color: #add8e6;
+        }
+        #game-status {
+            font-size: 1.5em;
+            margin-top: 20px;
+            color: #d9534f;
+        }
+        #game-rules {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #ffffff;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Score: 0</div>
+        <button id="click-button">Click Me!</button>
+        <div id="upgrades">
+            <button class="upgrade-button" id="double-points">Buy Double Points (Cost: 50)</button>
+            <button class="upgrade-button" id="auto-click">Buy Auto Click (Cost: 100)</button>
+            <button class="upgrade-button" id="triple-points">Buy Triple Points (Cost: 200)</button>
+            <button class="upgrade-button" id="auto-click-fast">Buy Faster Auto Click (Cost: 500)</button>
+            <button class="upgrade-button" id="extra-click-power">Buy Extra Click Power (Cost: 1000)</button>
+            <button class="upgrade-button" id="freeze-time">Buy Freeze Time (Cost: 300)</button>
+        </div>
+        <div id="auto-click-level-display">Auto Click Level: 0</div>
+        <div id="game-status"></div>
+        <div id="game-rules">
+            <h3>Game Rules:</h3>
+            <ul>
+                <li>Click the button to earn points.</li>
+                <li>Use points to buy upgrades that enhance your score production.</li>
+                <li>If your score reaches 5000, you win the game.</li>
+                <li>If your score falls below -100, you lose the game.</li>
+                <li>Points decrease over time, so act quickly to maintain your score.</li>
+                <li>You can buy the "Freeze Time" upgrade multiple times to stop the score decrease temporarily. The cost increases with each purchase.</li>
+                <li>Be careful when purchasing upgrades without enough points, as you will receive a penalty.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let pointsPerClick = 1;
+        let autoClickLevel = 0;
+        let autoClickCost = 100;
+        let autoClickInterval = null;
+        let scoreDecrementInterval = null;
+        let freezeTimeCost = 300;
+        let freezeTimeActive = false;
+        const winningScore = 5000;
+        const losingScore = -100;
+        const scoreDisplay = document.getElementById('score');
+        const clickButton = document.getElementById('click-button');
+        const doublePointsButton = document.getElementById('double-points');
+        const autoClickButton = document.getElementById('auto-click');
+        const triplePointsButton = document.getElementById('triple-points');
+        const autoClickFastButton = document.getElementById('auto-click-fast');
+        const extraClickPowerButton = document.getElementById('extra-click-power');
+        const freezeTimeButton = document.getElementById('freeze-time');
+        const autoClickLevelDisplay = document.getElementById('auto-click-level-display');
+        const gameStatusDisplay = document.getElementById('game-status');
+
+        clickButton.addEventListener('click', () => {
+            score += pointsPerClick;
+            updateScoreDisplay();
+            checkGameStatus();
+        });
+
+        doublePointsButton.addEventListener('click', () => {
+            if (score >= 50) {
+                score -= 50;
+                pointsPerClick *= 2;
+                updateScoreDisplay();
+                doublePointsButton.disabled = true;
+                doublePointsButton.classList.add('disabled');
+            } else {
+                score -= 20; // Increased penalty for trying to buy without enough points
+                updateScoreDisplay();
+                checkGameStatus();
+            }
+        });
+
+        autoClickButton.addEventListener('click', () => {
+            if (score >= autoClickCost) {
+                score -= autoClickCost;
+                autoClickLevel++;
+                autoClickCost = Math.floor(autoClickCost * 1.5);
+                updateScoreDisplay();
+                autoClickButton.textContent = `Buy Auto Click Level ${autoClickLevel + 1} (Cost: ${autoClickCost})`;
+                autoClickLevelDisplay.textContent = `Auto Click Level: ${autoClickLevel}`;
+
+                if (autoClickInterval !== null) {
+                    clearInterval(autoClickInterval);
+                }
+                autoClickInterval = setInterval(() => {
+                    score += pointsPerClick * autoClickLevel;
+                    updateScoreDisplay();
+                    checkGameStatus();
+                }, Math.max(1000 - (autoClickLevel * 100), 200));
+            } else {
+                score -= 40; // Increased penalty for trying to buy without enough points
+                updateScoreDisplay();
+                checkGameStatus();
+            }
+        });
+
+        triplePointsButton.addEventListener('click', () => {
+            if (score >= 200) {
+                score -= 200;
+                pointsPerClick *= 3;
+                updateScoreDisplay();
+                triplePointsButton.disabled = true;
+                triplePointsButton.classList.add('disabled');
+            } else {
+                score -= 60; // Increased penalty for trying to buy without enough points
+                updateScoreDisplay();
+                checkGameStatus();
+            }
+        });
+
+        autoClickFastButton.addEventListener('click', () => {
+            if (score >= 500) {
+                score -= 500;
+                updateScoreDisplay();
+                if (autoClickInterval !== null) {
+                    clearInterval(autoClickInterval);
+                }
+                autoClickInterval = setInterval(() => {
+                    score += pointsPerClick;
+                    updateScoreDisplay();
+                    checkGameStatus();
+                }, Math.max(500 - (autoClickLevel * 50), 100));
+                autoClickFastButton.disabled = true;
+                autoClickFastButton.classList.add('disabled');
+            } else {
+                score -= 100; // Increased penalty for trying to buy without enough points
+                updateScoreDisplay();
+                checkGameStatus();
+            }
+        });
+
+        extraClickPowerButton.addEventListener('click', () => {
+            if (score >= 1000) {
+                score -= 1000;
+                pointsPerClick += 10;
+                updateScoreDisplay();
+                extraClickPowerButton.disabled = true;
+                extraClickPowerButton.classList.add('disabled');
+            } else {
+                score -= 200; // Increased penalty for trying to buy without enough points
+                updateScoreDisplay();
+                checkGameStatus();
+            }
+        });
+
+        freezeTimeButton.addEventListener('click', () => {
+            if (score >= freezeTimeCost) {
+                score -= freezeTimeCost;
+                freezeTimeCost = Math.floor(freezeTimeCost * 1.5);
+                updateScoreDisplay();
+                freezeTimeButton.textContent = `Buy Freeze Time (Cost: ${freezeTimeCost})`;
+                freezeTimeActive = true;
+                clearInterval(scoreDecrementInterval);
+                setTimeout(() => {
+                    freezeTimeActive = false;
+                    startScoreDecrement();
+                }, 10000); // Freeze time lasts for 10 seconds
+            } else {
+                score -= 50; // Penalty for trying to buy without enough points
+                updateScoreDisplay();
+                checkGameStatus();
+            }
+        });
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${score}`;
+        }
+
+        function checkGameStatus() {
+            if (score >= winningScore) {
+                gameStatusDisplay.textContent = "Congratulations! You Win!";
+                disableAllButtons();
+            } else if (score <= losingScore) {
+                gameStatusDisplay.textContent = "Game Over! You Lose!";
+                disableAllButtons();
+            }
+        }
+
+        function disableAllButtons() {
+            clickButton.disabled = true;
+            doublePointsButton.disabled = true;
+            autoClickButton.disabled = true;
+            triplePointsButton.disabled = true;
+            autoClickFastButton.disabled = true;
+            extraClickPowerButton.disabled = true;
+            freezeTimeButton.disabled = true;
+
+            clickButton.classList.add('disabled');
+            doublePointsButton.classList.add('disabled');
+            autoClickButton.classList.add('disabled');
+            triplePointsButton.classList.add('disabled');
+            autoClickFastButton.classList.add('disabled');
+            extraClickPowerButton.classList.add('disabled');
+            freezeTimeButton.classList.add('disabled');
+        }
+
+        function startScoreDecrement() {
+            scoreDecrementInterval = setInterval(() => {
+                if (!freezeTimeActive) {
+                    score -= 5;
+                    updateScoreDisplay();
+                    checkGameStatus();
+                }
+            }, 2000); // Decrease every 2 seconds
+        }
+
+        // Start the score decrementing over time
+        startScoreDecrement();
+    </script>
+</body>
+</html>
